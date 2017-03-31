@@ -1,7 +1,9 @@
 import pandas as pd
 import numpy as np
+import seaborn as sns
 from sklearn import ensemble
 from sklearn import linear_model
+from sklearn.svm import SVR
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn import preprocessing
 import sklearn.metrics as metrics
@@ -100,4 +102,67 @@ ib_dummies = ib_dummies.drop('instant_f', axis=1)
 alldata = pd.concat((df.drop(['neighbourhood_cleansed', 'room_type', 'cancellation_policy','instant_bookable'], axis=1),
                      n_dummies.astype(int), rt_dummies.astype(int), xcl_dummies.astype(int),
                      ib_dummies.astype(int)), axis=1)
+
 allcols = alldata.columns
+
+scattercols = ['price',
+               'accommodates',
+               'number_of_reviews',
+               'reviews_per_month',
+               'beds',
+               'availability_30',
+               'review_scores_rating']
+# axs = pd.scatter_matrix(alldata[scattercols],
+#                        figsize=(12, 12), c='red')
+
+# axs = sns.pairplot(df, vars=scattercols, hue='room_type', kind='reg')
+# plt.show()
+
+# plot the scatter plot and correlation to find the correlation between features
+#ax1 = sns.pairplot(alldata, vars=scattercols, kind='reg')
+
+# fig, ax = plt.subplots(figsize=(9, 9))
+# sns.heatmap(alldata[scattercols].corr(), annot=True, linewidths=.5, ax=ax)
+# plt.show()
+
+# fig1, ax1 = plt.subplots(figsize=(8, 8))
+# sns.barplot(x='instant_bookable', y='price', data=df)
+# plt.show()
+
+
+# test the learning model
+rs = 1
+        #SVR(kernel='rbf', C=1e3, gamma=0.1), SVR(kernel='linear', C=1e3), SVR(kernel='poly', C=1e3, degree=3)]
+ests_labels = np.array(['Linear', 'Ridge', 'Lasso', 'ElasticNet', 'BayesRidge', 'OMP', 'svr_rbf', 'svr_lin'])#, 'svr_poly'])
+errvals = np.array([])
+
+ests = {
+    'Linear': linear_model.LinearRegression(),
+    'Ridge': linear_model.Ridge(),
+    'Lasso': linear_model.Lasso(),
+    'ElasticNet': linear_model.ElasticNet(),
+    'BayesRidge': linear_model.BayesianRidge(),
+    'OMP': linear_model.OrthogonalMatchingPursuit(),
+    'SVR_rbf': SVR(kernel='rbf'),
+    'SVR_lin': SVR(kernel='linear')
+    #,'SVR_poly': SVR(kernel='poly')
+}
+X_train, X_test, y_train, y_test = train_test_split(alldata.drop(['price'], axis=1),
+                                                    alldata.price, test_size=0.2, random_state=20)
+
+for name, e in ests.items():
+    e.fit(X_train, y_train)
+    this_err = metrics.median_absolute_error(y_test, e.predict(X_test))
+    #print "got error %0.2f" % this_err
+    print name, 'finished'
+    errvals = np.append(errvals, this_err)
+
+pos = np.arange(errvals.shape[0])
+srt = np.argsort(errvals)
+plt.figure(figsize=(7,5))
+plt.bar(pos, errvals[srt], align='center')
+plt.xticks(pos, ests_labels[srt])
+plt.xlabel('Estimator')
+plt.ylabel('Median Absolute Error')
+
+plt.show()
